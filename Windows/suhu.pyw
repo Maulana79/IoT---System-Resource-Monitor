@@ -92,7 +92,8 @@ def send_to_supabase(device_name, temperature, cpu_usage, ram_usage):
         "apikey": KEY,
         "Authorization": f"Bearer {KEY}",
         "Content-Type": "application/json",
-        "Prefer": "return=minimal"
+        "Prefer": "return=minimal",
+        "Prefer": "resolution=merge-duplicates"
     }
     data = {
         "device_name": device_name,

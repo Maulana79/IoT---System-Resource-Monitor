@@ -5,6 +5,17 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // Daftar warna untuk garis grafik tiap device
 const COLORS = ['#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#a78bfa']
 
+// Fungsi untuk menentukan status Online berdasarkan waktu data terakhir
+const isOnline = (lastUpdate) => {
+  if (!lastUpdate) return false;
+  
+  const now = new Date();
+  const lastUpdateDate = new Date(lastUpdate);
+  
+  // Jika selisih waktu sekarang dengan data terakhir > 2 menit (120000 ms), anggap offline
+  return (now - lastUpdateDate) < 120000;
+};
+
 export default function App() {
   const [chartData, setChartData] = useState([])
   
@@ -21,13 +32,14 @@ export default function App() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'temperature_logs' }, payload => {
         const newData = payload.new
         
-        // Update data terakhir untuk device tersebut (Suhu, CPU, RAM)
+        // Update data terakhir untuk device tersebut (Suhu, CPU, RAM, dan timestamp)
         setLatestData(prev => ({
           ...prev,
           [newData.device_name]: {
             temp: newData.temperature,
             cpu: newData.cpu_usage,
-            ram: newData.ram_usage
+            ram: newData.ram_usage,
+            created_at: newData.created_at
           }
         }))
 
@@ -87,7 +99,8 @@ export default function App() {
       latest[log.device_name] = {
         temp: log.temperature,
         cpu: log.cpu_usage,
-        ram: log.ram_usage
+        ram: log.ram_usage,
+        created_at: log.created_at
       }
       devices.add(log.device_name)
     })
@@ -114,6 +127,9 @@ export default function App() {
           const cpu = current.cpu !== undefined && current.cpu !== null ? Number(current.cpu).toFixed(1) : '--'
           const ram = current.ram !== undefined && current.ram !== null ? Number(current.ram).toFixed(1) : '--'
 
+          // Cek status online berdasarkan timestamp
+          const online = isOnline(current.created_at)
+
           return (
             <div key={device} className="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex flex-col relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
@@ -136,9 +152,9 @@ export default function App() {
                  </div>
               </div>
 
-              <p className="text-green-400 mt-4 text-xs flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                Online
+              <p className={`mt-4 text-xs flex items-center gap-2 ${online ? 'text-green-400' : 'text-gray-500'}`}>
+                <span className={`w-2 h-2 rounded-full ${online ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`}></span>
+                {online ? '● Online' : '● Offline'}
               </p>
             </div>
           )
